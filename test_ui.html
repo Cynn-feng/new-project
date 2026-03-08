@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Router — Test UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #0F172A;
+    --surface: #1E293B;
+    --border:  #334155;
+    --text:    #F8FAFC;
+    --muted:   #94A3B8;
+    --green:   #22C55E;
+    --red:     #EF4444;
+    --blue:    #38BDF8;
+    --yellow:  #FBBF24;
+  }
+
+  body {
+    font-family: 'Space Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  header h1 { font-size: 16px; font-weight: 700; letter-spacing: 0.05em; }
+  header span { color: var(--green); }
+
+  .base-url-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .base-url-wrap label { color: var(--muted); font-size: 12px; }
+
+  input[type="text"], input[type="url"], textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 200ms;
+  }
+
+  input[type="text"]:focus, input[type="url"]:focus, textarea:focus {
+    border-color: var(--green);
+  }
+
+  #base-url { width: 240px; }
+
+  main {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    height: calc(100vh - 57px);
+  }
+
+  .panel {
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel:last-child { border-right: none; }
+
+  .panel-header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 11px; color: var(--muted); letter-spacing: 0.05em; }
+  textarea { resize: vertical; min-height: 120px; width: 100%; }
+  input[type="text"] { width: 100%; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 200ms, background 200ms;
+    letter-spacing: 0.03em;
+  }
+
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--green); color: #0F172A; }
+  .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* Status badge */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .badge-ok  { background: #14532d; color: var(--green); }
+  .badge-err { background: #450a0a; color: var(--red); }
+
+  /* Response panel */
+  #response-panel {
+    grid-column: 2;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .response-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+  }
+
+  .tab {
+    padding: 10px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 200ms, border-color 200ms;
+    text-transform: uppercase;
+  }
+
+  .tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+  .tab-content { display: none; flex: 1; overflow-y: auto; padding: 20px; }
+  .tab-content.active { display: block; }
+
+  /* JSON syntax highlight */
+  pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .json-key    { color: var(--blue); }
+  .json-str    { color: var(--green); }
+  .json-num    { color: var(--yellow); }
+  .json-bool   { color: #C084FC; }
+  .json-null   { color: var(--muted); }
+
+  /* Models table */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface); }
+
+  .tag {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    margin: 1px;
+  }
+
+  /* Health status */
+  .health-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .health-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+
+  .health-row .key { color: var(--muted); }
+
+  /* Spinner */
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty-state {
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+    padding: 40px 0;
+  }
+
+  /* Latency / meta row */
+  .meta-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    color: var(--muted);
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+
+  .meta-row strong { color: var(--text); }
+
+  @media (max-width: 768px) {
+    main { grid-template-columns: 1fr; height: auto; }
+    .panel { border-right: none; border-bottom: 1px solid var(--border); min-height: 400px; }
+    #base-url { width: 160px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spinner { animation: none; }
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AGENT ROUTER <span>TEST UI</span></h1>
+  <div class="base-url-wrap">
+    <label for="base-url">BASE URL</label>
+    <input type="url" id="base-url" value="http://127.0.0.1:8000" spellcheck="false">
+  </div>
+</header>
+
+<main>
+  <!-- Left: Controls -->
+  <div class="panel">
+    <div class="panel-header">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      Request
+    </div>
+    <div class="panel-body">
+
+      <!-- Chat -->
+      <div style="border:1px solid var(--border);border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:12px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted);">POST /chat</div>
+
+        <div class="field">
+          <label for="msg">MESSAGE *</label>
+          <textarea id="msg" placeholder="Enter your message...">Explain what a transformer model is in 2 sentences.</textarea>
+        </div>
+
+        <div class="field">
+          <label for="uid">USER_ID (optional)</label>
+          <input type="text" id="uid" placeholder="e.g. user_123" maxlength="64">
+        </div>
+
+        <button class="btn btn-primary" id="btn-chat" onclick="sendChat()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Send
+        </button>
+      </div>
+
+      <!-- Models + Health -->
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="btn-models" onclick="fetchModels()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          GET /models
+        </button>
+        <button class="btn btn-secondary" id="btn-health" onclick="fetchHealth()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          GET /health
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Right: Response -->
+  <div class="panel" id="response-panel">
+    <div class="response-tabs">
+      <div class="tab active" onclick="switchTab('chat')" id="tab-chat">Chat</div>
+      <div class="tab" onclick="switchTab('models')" id="tab-models">Models</div>
+      <div class="tab" onclick="switchTab('health')" id="tab-health">Health</div>
+    </div>
+
+    <div class="tab-content active" id="pane-chat">
+      <div class="empty-state">Send a chat request to see the response.</div>
+    </div>
+
+    <div class="tab-content" id="pane-models">
+      <div class="empty-state">Click GET /models to load the model registry.</div>
+    </div>
+
+    <div class="tab-content" id="pane-health">
+      <div class="empty-state">Click GET /health to check server status.</div>
+    </div>
+  </div>
+</main>
+
+<script>
+  const base = () => document.getElementById('base-url').value.replace(/\/$/, '');
+
+  function switchTab(name) {
+    ['chat','models','health'].forEach(t => {
+      document.getElementById('tab-' + t).classList.toggle('active', t === name);
+      document.getElementById('pane-' + t).classList.toggle('active', t === name);
+    });
+  }
+
+  function setLoading(btnId, loading) {
+    const btn = document.getElementById(btnId);
+    if (loading) {
+      btn._orig = btn.innerHTML;
+      btn.innerHTML = '<span class="spinner"></span> Loading...';
+      btn.disabled = true;
+    } else {
+      btn.innerHTML = btn._orig;
+      btn.disabled = false;
+    }
+  }
+
+  function syntaxHighlight(json) {
+    const str = typeof json === 'string' ? json : JSON.stringify(json, null, 2);
+    return str.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
+      if (/^"/.test(match)) {
+        if (/:$/.test(match)) return `<span class="json-key">${match}</span>`;
+        return `<span class="json-str">${match}</span>`;
+      }
+      if (/true|false/.test(match)) return `<span class="json-bool">${match}</span>`;
+      if (/null/.test(match)) return `<span class="json-null">${match}</span>`;
+      return `<span class="json-num">${match}</span>`;
+    });
+  }
+
+  async function sendChat() {
+    const message = document.getElementById('msg').value.trim();
+    if (!message) return;
+    const user_id = document.getElementById('uid').value.trim() || undefined;
+
+    setLoading('btn-chat', true);
+    switchTab('chat');
+
+    const body = { message };
+    if (user_id) body.user_id = user_id;
+
+    const t0 = Date.now();
+    try {
+      const res = await fetch(base() + '/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const elapsed = Date.now() - t0;
+      const data = await res.json();
+
+      const meta = `
+        <div class="meta-row">
+          <span>STATUS <strong style="color:${res.ok ? 'var(--green)' : 'var(--red)'}">${res.status}</strong></span>
+          <span>ROUND-TRIP <strong>${elapsed}ms</strong></span>
+          ${data.selected_model ? `<span>MODEL <strong>${data.selected_model}</strong></span>` : ''}
+          ${data.task_type ? `<span>TASK <strong>${data.task_type}</strong></span>` : ''}
+          ${data.fallback_triggered !== undefined ? `<span>FALLBACK <strong style="color:${data.fallback_triggered ? 'var(--yellow)' : 'var(--green)'}">${data.fallback_triggered}</strong></span>` : ''}
+        </div>`;
+
+      document.getElementById('pane-chat').innerHTML =
+        meta + `<pre>${syntaxHighlight(data)}</pre>`;
+    } catch (e) {
+      document.getElementById('pane-chat').innerHTML =
+        `<pre style="color:var(--red)">Error: ${e.message}\n\nMake sure the server is running at:\n${base()}</pre>`;
+    } finally {
+      setLoading('btn-chat', false);
+    }
+  }
+
+  async function fetchModels() {
+    setLoading('btn-models', true);
+    switchTab('models');
+
+    try {
+      const res = await fetch(base() + '/models');
+      const data = await res.json();
+
+      if (!Array.isArray(data) || data.length === 0) {
+        document.getElementById('pane-models').innerHTML = '<div class="empty-state">No models returned.</div>';
+        return;
+      }
+
+      const rows = data.map(m => `
+        <tr>
+          <td><strong>${m.alias}</strong></td>
+          <td>${m.provider}</td>
+          <td style="color:var(--muted)">${m.model}</td>
+          <td>${(m.capabilities || []).map(c => `<span class="tag">${c}</span>`).join('')}</td>
+          <td style="text-align:right">${m.max_context?.toLocaleString() ?? '—'}</td>
+          <td><span class="badge ${m.cost_level === 'low' ? 'badge-ok' : 'badge-err'}">${m.cost_level}</span></td>
+          <td>${m.speed_level}</td>
+        </tr>`).join('');
+
+      document.getElementById('pane-models').innerHTML = `
+        <table>
+          <thead><tr>
+            <th>Alias</th><th>Provider</th><th>Model</th><th>Capabilities</th>
+            <th style="text-align:right">Max Ctx</th><th>Cost</th><th>Speed</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+    } catch (e) {
+      document.getElementById('pane-models').innerHTML =
+        `<pre style="color:var(--red)">Error: ${e.message}</pre>`;
+    } finally {
+      setLoading('btn-models', false);
+    }
+  }
+
+  async function fetchHealth() {
+    setLoading('btn-health', true);
+    switchTab('health');
+
+    try {
+      const res = await fetch(base() + '/health');
+      const data = await res.json();
+
+      document.getElementById('pane-health').innerHTML = `
+        <div class="health-card">
+          <div class="health-row">
+            <span class="key">STATUS</span>
+            <span class="badge ${data.status === 'ok' ? 'badge-ok' : 'badge-err'}">${data.status?.toUpperCase()}</span>
+          </div>
+          <div class="health-row">
+            <span class="key">APP NAME</span>
+            <span>${data.app_name ?? '—'}</span>
+          </div>
+          <div class="health-row">
+            <span class="key">DATABASE URL</span>
+            <span style="color:var(--muted);font-size:12px">${data.database_url ?? '—'}</span>
+          </div>
+          <div class="health-row">
+            <span class="key">HTTP STATUS</span>
+            <span style="color:${res.ok ? 'var(--green)' : 'var(--red)'}">${res.status} ${res.statusText}</span>
+          </div>
+        </div>`;
+    } catch (e) {
+      document.getElementById('pane-health').innerHTML =
+        `<pre style="color:var(--red)">Error: ${e.message}</pre>`;
+    } finally {
+      setLoading('btn-health', false);
+    }
+  }
+
+  // Allow Ctrl+Enter to send chat
+  document.getElementById('msg').addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 'Enter') sendChat();
+  });
+</script>
+</body>
+</html>

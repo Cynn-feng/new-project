@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>__APP_NAME__ 对话演示台</title>
+<link rel="stylesheet" href="/static/site.css">
+</head>
+<body>
+<a class="skip-link" href="#main">跳到主内容</a>
+<div class="shell">
+  <header class="site-nav" aria-label="主导航">
+    <div class="brand-mark">
+      <span class="brand-orb" aria-hidden="true"></span>
+      <div class="brand-copy">
+        <strong>__APP_NAME__</strong>
+        <span>对话演示台</span>
+      </div>
+    </div>
+    <nav class="nav-links">
+      <a class="nav-link" href="/">首页</a>
+      <a class="nav-link active" href="/workspace">对话页</a>
+      <a class="nav-link" href="/classification">AI 决策层</a>
+    </nav>
+    <div class="nav-meta">
+      <a class="pill" href="/governance">管理后台</a>
+      <span id="service-pill" class="pill">检测服务中</span>
+      <a class="pill" href="/docs" target="_blank" rel="noreferrer">文档</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero hero-grid raise-in">
+      <div>
+        <p class="kicker">上手方式</p>
+        <h1 class="page-title">1 输入问题，2 获取回答，3 看右侧解释。</h1>
+        <p class="copy">
+          这页先服务真实使用，再服务讲解。你可以直接发送问题拿到回答；
+          如果需要向别人解释系统为什么这样回答，再看右侧的路由说明和特征信号。
+        </p>
+        <div class="chip-row">
+          <button class="chip" type="button" data-preset="general">普通问答</button>
+          <button class="chip" type="button" data-preset="summary">总结任务</button>
+          <button class="chip" type="button" data-preset="coding">代码任务</button>
+          <button class="chip" type="button" data-preset="reasoning">推理任务</button>
+          <button class="chip" type="button" data-preset="rag">检索增强</button>
+        </div>
+      </div>
+      <aside class="hero-aside">
+        <article class="surface-card highlight delay-1 raise-in">
+          <span class="label">当前轮次</span>
+          <div class="summary-list">
+            <div class="summary-item">
+              <span>任务类型</span>
+              <strong id="task-label">等待中</strong>
+            </div>
+            <div class="summary-item">
+              <span>选中路由</span>
+              <strong id="route-label">-</strong>
+            </div>
+            <div class="summary-item">
+              <span>时延</span>
+              <strong id="latency-label">-</strong>
+            </div>
+          </div>
+        </article>
+        <article class="surface-card delay-2 raise-in">
+          <span class="label">推荐用法</span>
+          <div class="surface-list">
+            <article>
+              <strong>先直接发送</strong>
+              <p class="card-copy">第一次体验时，不需要先看技术细节，直接发问题即可。</p>
+            </article>
+            <article>
+              <strong>需要讲解时再看决策</strong>
+              <p class="card-copy">“只看决策”会调用决策模型，但不会生成最终回答。</p>
+            </article>
+          </div>
+        </article>
+      </aside>
+    </section>
+
+    <section class="dashboard-grid section raise-in delay-1">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>对话主舞台</h2>
+          <p class="panel-copy">从这里输入问题并获取回答。路由解释放在右侧，不干扰主线。</p>
+        </div>
+
+        <div class="stack">
+          <div class="helper-block">
+            <span class="label">如何使用</span>
+            <div class="message-body">直接点击“发送并获取回答”即可开始。只有在需要展示系统判断过程时，再点击“只看决策”，它只会执行路由判断，不会生成最终答案。</div>
+          </div>
+          <div class="field">
+            <label class="field-head" for="message">
+              <span>你的问题 *</span>
+              <span>Ctrl + Enter 发送</span>
+            </label>
+            <textarea id="message" class="textarea" spellcheck="false"></textarea>
+          </div>
+
+          <div id="notice" class="notice" aria-live="polite"></div>
+
+          <div class="button-row">
+            <button id="inspect-route" class="button-secondary" type="button">只看决策（不生成回答）</button>
+            <button id="send-chat" class="button-primary" type="button">发送并获取回答</button>
+          </div>
+
+          <div id="conversation-feed" class="conversation-feed"></div>
+
+          <details class="surface-card debug-card">
+            <summary>高级设置与请求快照</summary>
+            <div class="stack" style="margin-top:14px;">
+              <div class="field">
+                <label class="field-head" for="user-id">
+                  <span>用户 ID</span>
+                  <span>可选</span>
+                </label>
+                <input id="user-id" class="input" type="text" maxlength="64" placeholder="workspace_operator">
+              </div>
+              <div class="field">
+                <label class="field-head" for="base-url">
+                  <span>接口地址</span>
+                  <span>默认当前站点</span>
+                </label>
+                <input id="base-url" class="input" type="url" spellcheck="false">
+              </div>
+              <div class="field">
+                <label class="field-head" for="metadata">
+                  <span>附加信息 JSON</span>
+                  <span>必须是对象</span>
+                </label>
+                <textarea id="metadata" class="textarea small" spellcheck="false"></textarea>
+              </div>
+              <div class="field">
+                <label class="field-head" for="tools">
+                  <span>工具 JSON</span>
+                  <span>必须是数组</span>
+                </label>
+                <textarea id="tools" class="textarea small" spellcheck="false"></textarea>
+              </div>
+              <pre id="request-preview" class="code-block">等待输入。</pre>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <aside class="stack">
+        <section class="panel">
+          <div class="panel-head">
+            <h3>本轮路由说明</h3>
+            <p class="panel-copy">这里展示这条消息在当前路由层里的只读判断结果。</p>
+          </div>
+          <div id="preflight-summary" class="summary-grid"></div>
+          <div class="helper-block" style="margin-top:14px;">
+            <span class="label">为什么这样选</span>
+            <div id="preflight-reason" class="message-body">等待静态检查。</div>
+          </div>
+          <div id="decision-list" class="detail-list" style="margin-top:14px;"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h3>特征信号与执行结果</h3>
+            <p class="panel-copy">右侧只保留对演示最有帮助的信号和最终执行信息。</p>
+          </div>
+          <div id="signal-grid" class="signal-grid"></div>
+          <div id="execution-list" class="detail-list" style="margin-top:14px;"></div>
+          <details class="surface-card debug-card" style="margin-top:14px;">
+            <summary>查看响应 JSON</summary>
+            <pre id="response-json" class="code-block">等待首个响应。</pre>
+          </details>
+        </section>
+      </aside>
+    </section>
+  </main>
+</div>
+
+<script>
+  const bootstrap = __BOOTSTRAP__;
+  const ROUTES = {
+    general_qa: { label: "普通问答", detail: "开放问答与轻量解释。" },
+    summarization: { label: "总结任务", detail: "总结、压缩和提炼重点。" },
+    coding: { label: "代码任务", detail: "调试、实现和代码理解。" },
+    reasoning: { label: "推理任务", detail: "比较、分析和多步推理。" },
+    rag: { label: "检索增强", detail: "检索、资料查询和工具联动。" }
+  };
+  const PRESETS = {
+    general: "请解释为什么多模型路由比单模型入口更适合 agent 系统。",
+    summary: "请用 4 条简短要点，总结 orchestrator 在这个平台中的职责。",
+    coding: "帮我调试这个 Python 函数：def divide(a, b): return a / b",
+    reasoning: "对比 SQLite 和 Postgres 在小型 AI 管理平台中的适用性，并说明原因。",
+    rag: "请检索当前路由设计的知识内容，并返回最相关的简要总结。"
+  };
+
+  const state = {
+    messages: [],
+    inspection: null,
+    response: null,
+    lastInspectedMessage: ""
+  };
+  const el = {};
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    bindElements();
+    initDefaults();
+    bindEvents();
+    renderConversation();
+    renderPreflight();
+    renderSignals();
+    renderExecution();
+    updatePreview();
+    await loadHealth();
+    await inspectRoute({ silent: true });
+  });
+
+  function bindElements() {
+    [
+      "message",
+      "user-id",
+      "base-url",
+      "metadata",
+      "tools",
+      "notice",
+      "inspect-route",
+      "send-chat",
+      "request-preview",
+      "conversation-feed",
+      "task-label",
+      "route-label",
+      "latency-label",
+      "preflight-summary",
+      "preflight-reason",
+      "decision-list",
+      "signal-grid",
+      "execution-list",
+      "response-json",
+      "service-pill"
+    ].forEach((id) => {
+      el[id] = document.getElementById(id);
+    });
+  }
+
+  function initDefaults() {
+    el["base-url"].value = window.location.origin;
+    el["message"].value = PRESETS.general;
+    el["metadata"].value = JSON.stringify(
+      { source: "workspace", surface: "conversation-showcase", mock_mode: bootstrap.mockResponses },
+      null,
+      2
+    );
+    el["tools"].value = "[]";
+  }
+
+  function bindEvents() {
+    ["message", "user-id", "base-url", "metadata", "tools"].forEach((id) => {
+      el[id].addEventListener("input", updatePreview);
+    });
+
+    el["message"].addEventListener("keydown", (event) => {
+      if (event.ctrlKey && event.key === "Enter") {
+        event.preventDefault();
+        sendChat();
+      }
+    });
+
+    document.querySelectorAll("[data-preset]").forEach((button) => {
+      button.addEventListener("click", () => {
+        el["message"].value = PRESETS[button.dataset.preset];
+        updatePreview();
+        inspectRoute({ silent: true });
+      });
+    });
+
+    el["inspect-route"].addEventListener("click", () => inspectRoute());
+    el["send-chat"].addEventListener("click", sendChat);
+  }
+
+  function normalizeBaseUrl(rawValue) {
+    let value = (rawValue || "").trim().replace(/\/+$/, "");
+    if (!value) return window.location.origin;
+    if (bootstrap.apiPrefix !== "/" && value.endsWith(bootstrap.apiPrefix)) {
+      value = value.slice(0, -bootstrap.apiPrefix.length);
+    }
+    return value || window.location.origin;
+  }
+
+  function endpoint(path) {
+    return `${normalizeBaseUrl(el["base-url"].value)}${path}`;
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll("\"", "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
+  function routeMeta(taskType) {
+    return ROUTES[taskType] || { label: taskType || "未知类型", detail: "等待分类。" };
+  }
+
+  function parseJsonField(id, expectedType) {
+    const raw = el[id].value.trim();
+    if (!raw) return expectedType === "array" ? [] : {};
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (error) {
+      throw new Error(`${id} 不是合法 JSON: ${error.message}`);
+    }
+    if (expectedType === "array" && !Array.isArray(parsed)) {
+      throw new Error(`${id} 必须是数组。`);
+    }
+    if (
+      expectedType === "object" &&
+      (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
+    ) {
+      throw new Error(`${id} 必须是对象。`);
+    }
+    return parsed;
+  }
+
+  function buildChatPayload() {
+    const message = el["message"].value.trim();
+    if (!message) throw new Error("message 不能为空。");
+    const payload = { message, metadata: parseJsonField("metadata", "object") };
+    const userId = el["user-id"].value.trim();
+    if (userId) payload.user_id = userId;
+    const tools = parseJsonField("tools", "array");
+    if (tools.length > 0) payload.tools = tools;
+    return payload;
+  }
+
+  function buildInspectPayload() {
+    const message = el["message"].value.trim();
+    if (!message) throw new Error("message 不能为空。");
+    return { message };
+  }
+
+  function updatePreview() {
+    try {
+      const inspectPayload = buildInspectPayload();
+      const chatPayload = buildChatPayload();
+      clearNotice();
+      el["request-preview"].textContent = JSON.stringify(
+        {
+          inspect: { endpoint: endpoint(bootstrap.inspectEndpoint), payload: inspectPayload },
+          chat: { endpoint: endpoint(bootstrap.chatEndpoint), payload: chatPayload }
+        },
+        null,
+        2
+      );
+    } catch (error) {
+      showNotice(error.message);
+      el["request-preview"].textContent = "修正输入后，这里会显示本轮请求快照。";
+    }
+  }
+
+  function showNotice(message) {
+    el["notice"].textContent = message;
+    el["notice"].classList.add("show");
+  }
+
+  function clearNotice() {
+    el["notice"].textContent = "";
+    el["notice"].classList.remove("show");
+  }
+
+  function setButtonBusy(id, busy, activeLabel) {
+    const button = el[id];
+    if (!button.dataset.label) button.dataset.label = button.innerHTML;
+    button.disabled = busy;
+    button.innerHTML = busy
+      ? `<span class="spinner" aria-hidden="true"></span> ${activeLabel}`
+      : button.dataset.label;
+  }
+
+  function renderConversation() {
+    if (state.messages.length === 0) {
+      el["conversation-feed"].innerHTML = '<div class="empty">发送问题后，这里会显示对话过程。</div>';
+      return;
+    }
+
+    el["conversation-feed"].innerHTML = state.messages.map((message) => `
+      <article class="message ${message.role}">
+        <div class="message-meta">
+          <span>${escapeHtml(message.title)}</span>
+          <span>${escapeHtml(message.meta)}</span>
+        </div>
+        <div class="message-body">${escapeHtml(message.content)}</div>
+      </article>
+    `).join("");
+  }
+
+  function renderPreflight(inspection = null) {
+    if (!inspection) {
+      el["preflight-summary"].innerHTML = [
+        summaryCard("任务类型", "等待中", "等待静态检查"),
+        summaryCard("选中路由", "-", "等待选模"),
+        summaryCard("决策方式", "-", "等待决策来源")
+      ].join("");
+      el["preflight-reason"].textContent = "等待静态检查。";
+      el["decision-list"].innerHTML = [
+        detailItem("决策模型", "-"),
+        detailItem("决策置信度", "-"),
+        detailItem("规则回退", "-"),
+        detailItem("规则基线", "-")
+      ].join("");
+      el["task-label"].textContent = "等待中";
+      el["route-label"].textContent = "-";
+      return;
+    }
+
+    const route = routeMeta(inspection.task_type);
+    const trace = inspection.decision_trace || null;
+    el["preflight-summary"].innerHTML = [
+      summaryCard("任务类型", route.label, route.detail),
+      summaryCard("选中路由", inspection.selected_model_key, inspection.selected_model_name || "未解析模型"),
+      summaryCard("决策方式", formatDecisionSource(trace), formatDecisionStatus(trace))
+    ].join("");
+    el["preflight-reason"].textContent = inspection.reason || "当前没有返回路由原因。";
+    el["decision-list"].innerHTML = [
+      detailItem("决策模型", formatDecisionModel(trace)),
+      detailItem("决策置信度", formatDecisionConfidence(trace)),
+      detailItem("规则回退", formatDecisionStatus(trace)),
+      detailItem("规则基线", trace?.rule_route_to || "未提供")
+    ].join("");
+    el["task-label"].textContent = route.label;
+    el["route-label"].textContent = inspection.selected_model_key || "-";
+  }
+
+  function renderSignals(features = null) {
+    const signals = [
+      ["代码信号", features?.code_signal || 0],
+      ["检索信号", features?.retrieval_signal || 0],
+      ["推理信号", features?.reasoning_signal || 0],
+      ["总结信号", features?.summarization_signal || 0]
+    ];
+    el["signal-grid"].innerHTML = signals.map(([label, value]) => signalCard(label, value)).join("");
+  }
+
+  function renderExecution(response = null, roundTrip = null) {
+    if (!response) {
+      el["execution-list"].innerHTML = `
+        <div class="detail-item"><span>模型服务</span><strong>-</strong></div>
+        <div class="detail-item"><span>实际模型</span><strong>-</strong></div>
+        <div class="detail-item"><span>最终路由</span><strong>-</strong></div>
+        <div class="detail-item"><span>执行回退</span><strong>-</strong></div>
+      `;
+      el["latency-label"].textContent = "-";
+      return;
+    }
+
+    el["execution-list"].innerHTML = `
+      <div class="detail-item"><span>模型服务</span><strong>${escapeHtml(response.provider || "-")}</strong></div>
+      <div class="detail-item"><span>实际模型</span><strong>${escapeHtml(response.resolved_model || "-")}</strong></div>
+      <div class="detail-item"><span>最终路由</span><strong>${escapeHtml(response.selected_model || "-")}</strong></div>
+      <div class="detail-item"><span>执行回退</span><strong>${escapeHtml(formatExecutionFallback(response))}</strong></div>
+    `;
+    el["latency-label"].textContent = `${roundTrip ?? response.latency_ms ?? "-"} ms`;
+  }
+
+  function summaryCard(label, value, copy) {
+    return `
+      <article class="summary-card">
+        <span class="label">${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
+        <p class="card-copy">${escapeHtml(copy)}</p>
+      </article>
+    `;
+  }
+
+  function signalCard(label, value) {
+    const percent = Math.max(0, Math.min(100, Math.round(Number(value || 0) * 100)));
+    return `
+      <article class="signal-card">
+        <div class="signal-head">
+          <span class="label">${escapeHtml(label)}</span>
+          <strong>${escapeHtml(String(percent))}%</strong>
+        </div>
+        <div class="signal-track" aria-hidden="true">
+          <div class="signal-fill" style="--fill:${percent}%;"></div>
+        </div>
+      </article>
+    `;
+  }
+
+  function detailItem(label, value) {
+    return `
+      <div class="detail-item">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
+      </div>
+    `;
+  }
+
+  function formatDecisionSource(trace) {
+    if (!trace) return "等待中";
+    return trace.source === "ai_model" ? "AI 决策生效" : "规则兜底生效";
+  }
+
+  function formatDecisionModel(trace) {
+    if (!trace) return "-";
+    return trace.ai_model_version || "未调用外部决策模型";
+  }
+
+  function formatDecisionConfidence(trace) {
+    if (!trace || typeof trace.ai_confidence !== "number") return "未提供";
+    return `${Math.round(trace.ai_confidence * 100)}%`;
+  }
+
+  function formatDecisionStatus(trace) {
+    if (!trace) return "等待中";
+    if (trace.source === "rule_router" && trace.ai_route_to) return "已回退到规则";
+    if (trace.source === "rule_router") return "规则直接生效";
+    if (trace.ai_route_to && trace.ai_route_to !== trace.rule_route_to) return "AI 覆盖规则";
+    if (trace.ai_route_to && trace.ai_route_to === trace.rule_route_to) return "AI 与规则一致";
+    return "AI 决策生效";
+  }
+
+  function formatExecutionFallback(response) {
+    if (response?.fallback_triggered) return "已触发执行回退";
+    return "未触发";
+  }
+
+  async function inspectRoute({ silent = false } = {}) {
+    let payload;
+    try {
+      payload = buildInspectPayload();
+      clearNotice();
+    } catch (error) {
+      if (!silent) showNotice(error.message);
+      return null;
+    }
+
+    setButtonBusy("inspect-route", true, "检查中");
+    try {
+      const data = await fetchJson(endpoint(bootstrap.inspectEndpoint), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      state.inspection = data;
+      state.lastInspectedMessage = payload.message;
+      renderPreflight(data);
+      renderSignals(data.features || null);
+      return data;
+    } catch (error) {
+      if (!silent) showNotice(error instanceof Error ? error.message : String(error));
+      renderPreflight();
+      renderSignals();
+      return null;
+    } finally {
+      setButtonBusy("inspect-route", false, "检查中");
+    }
+  }
+
+  async function sendChat() {
+    let payload;
+    try {
+      payload = buildChatPayload();
+      clearNotice();
+    } catch (error) {
+      updatePreview();
+      return;
+    }
+
+    if (!state.inspection || state.lastInspectedMessage !== payload.message) {
+      await inspectRoute({ silent: true });
+    }
+
+    const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const pendingId = `pending-${Date.now()}`;
+    state.messages.push(
+      { id: `user-${Date.now()}`, role: "user", title: "你", content: payload.message, meta: time },
+      { id: pendingId, role: "assistant", title: "系统处理中", content: "正在执行模型调用...", meta: state.inspection?.selected_model_key || "等待路由" }
+    );
+    renderConversation();
+    setButtonBusy("send-chat", true, "发送中");
+    const startedAt = performance.now();
+
+    try {
+      const data = await fetchJson(endpoint(bootstrap.chatEndpoint), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      state.response = data;
+      state.inspection = {
+        task_type: data.task_type,
+        features: data.features,
+        selected_model_key: data.selected_model,
+        selected_model_name: data.resolved_model,
+        reason: data.reason,
+        decision_trace: data.decision_trace || null
+      };
+      const pending = state.messages.find((item) => item.id === pendingId);
+      if (pending) {
+        const route = routeMeta(data.task_type);
+        pending.title = route.label;
+        pending.content = data.answer || "接口没有返回 answer。";
+        pending.meta = `${data.selected_model || "-"} · ${data.provider || "-"}`;
+      }
+      renderConversation();
+      renderPreflight(state.inspection);
+      renderExecution(data, Math.round(performance.now() - startedAt));
+      renderSignals(data.features || state.inspection?.features || null);
+      el["response-json"].textContent = JSON.stringify(data, null, 2);
+    } catch (error) {
+      const pending = state.messages.find((item) => item.id === pendingId);
+      if (pending) {
+        pending.title = "请求失败";
+        pending.content = `请求失败：${error instanceof Error ? error.message : String(error)}`;
+        pending.meta = "错误";
+      }
+      renderConversation();
+      renderExecution();
+      el["response-json"].textContent = error instanceof Error ? error.message : String(error);
+      showNotice(error instanceof Error ? error.message : String(error));
+    } finally {
+      setButtonBusy("send-chat", false, "发送中");
+    }
+  }
+
+  async function loadHealth() {
+    try {
+      const data = await fetchJson(endpoint(bootstrap.healthEndpoint));
+      setStatusPill(el["service-pill"], data.status === "ok" ? "ok" : "warn", data.status === "ok" ? "服务在线" : "服务告警");
+    } catch (error) {
+      setStatusPill(el["service-pill"], "danger", "服务离线");
+    }
+  }
+
+  async function fetchJson(url, options = undefined) {
+    const response = await fetch(url, options);
+    const text = await response.text();
+    let payload = {};
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch (error) {
+        throw new Error(`接口未返回 JSON: ${error.message}`);
+      }
+    }
+    if (!response.ok) throw new Error(payload.detail || `HTTP ${response.status}`);
+    return payload;
+  }
+
+  function setStatusPill(node, tone, text) {
+    node.textContent = text;
+    node.className = `pill status-pill ${tone}`;
+  }
+</script>
+</body>
+</html>

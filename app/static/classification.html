@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>__APP_NAME__ 决策展示台</title>
+<link rel="stylesheet" href="/static/site.css">
+</head>
+<body>
+<a class="skip-link" href="#main">跳到主内容</a>
+<div class="shell">
+  <header class="site-nav" aria-label="主导航">
+    <div class="brand-mark">
+      <span class="brand-orb" aria-hidden="true"></span>
+      <div class="brand-copy">
+        <strong>__APP_NAME__</strong>
+        <span>决策展示台</span>
+      </div>
+    </div>
+    <nav class="nav-links">
+      <a class="nav-link" href="/">首页</a>
+      <a class="nav-link" href="/workspace">对话页</a>
+      <a class="nav-link active" href="/classification">AI 决策层</a>
+    </nav>
+    <div class="nav-meta">
+      <a class="pill" href="/governance">管理后台</a>
+      <span id="service-pill" class="pill">检测服务中</span>
+      <a class="pill" href="/docs" target="_blank" rel="noreferrer">文档</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero hero-grid raise-in">
+      <div>
+        <p class="kicker">解释 AI 决策</p>
+        <h1 class="page-title">输入一句话，立刻看到系统会怎样理解它。</h1>
+        <p class="copy">
+          这页只负责解释，不负责真正发起对话。它会用只读 <code>/router/inspect</code>
+          展示任务类型、特征值、路由结果和原因，方便你在演示时回答“系统为什么会这样选”。
+        </p>
+        <div class="chip-row">
+          <button class="chip" type="button" data-preset="general">普通问答</button>
+          <button class="chip" type="button" data-preset="summary">总结任务</button>
+          <button class="chip" type="button" data-preset="coding">代码任务</button>
+          <button class="chip" type="button" data-preset="reasoning">推理任务</button>
+          <button class="chip" type="button" data-preset="rag">检索增强</button>
+        </div>
+      </div>
+      <aside class="hero-aside">
+        <article class="surface-card highlight delay-1 raise-in">
+          <span class="label">决策快照</span>
+          <div class="summary-list">
+            <div class="summary-item">
+              <span>选中路由</span>
+              <strong id="selected-route">等待中</strong>
+            </div>
+            <div class="summary-item">
+              <span>决策方式</span>
+              <strong id="decision-source">等待中</strong>
+            </div>
+            <div class="summary-item">
+              <span>决策模型</span>
+              <strong id="decision-model">-</strong>
+            </div>
+            <div class="summary-item">
+              <span>规则回退</span>
+              <strong id="fallback-state">-</strong>
+            </div>
+          </div>
+          <div class="badge-row" style="margin-top:14px;">
+            <span id="active-policy" class="mini-stat">生效策略：-</span>
+            <span id="model-count" class="mini-stat">模型数：-</span>
+          </div>
+        </article>
+        <article class="surface-card delay-2 raise-in">
+          <span class="label">怎么使用</span>
+          <div class="surface-list">
+            <article>
+              <strong>1. 输入一句消息</strong>
+              <p class="card-copy">可以直接粘贴用户问题、代码片段或总结请求。</p>
+            </article>
+            <article>
+              <strong>2. 执行检查</strong>
+              <p class="card-copy">页面会调用决策模型进行判断，但不会生成最终回答。</p>
+            </article>
+          </div>
+        </article>
+      </aside>
+    </section>
+
+    <section class="two-column section raise-in delay-1">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>输入一条待检查消息</h2>
+          <p class="panel-copy">适合在演示时补充“系统是怎样判断的”，而不是直接展示接口细节。</p>
+        </div>
+        <div class="stack">
+          <div class="field">
+            <label class="field-head" for="message">
+              <span>待检查消息 *</span>
+              <span>只做路由决策，不生成最终回答</span>
+            </label>
+            <textarea id="message" class="textarea" spellcheck="false"></textarea>
+          </div>
+
+          <div id="notice" class="notice" aria-live="polite"></div>
+
+          <div class="button-row">
+            <button id="inspect-button" class="button-primary" type="button">执行检查</button>
+            <a class="button-secondary" href="/workspace">回到对话页</a>
+          </div>
+
+          <details class="surface-card debug-card">
+            <summary>请求快照</summary>
+            <pre id="request-preview" class="code-block">等待输入。</pre>
+          </details>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>系统会怎么理解</h2>
+          <p class="panel-copy">先看任务类型，再看模型路由和判断原因。</p>
+        </div>
+        <div id="summary-grid" class="summary-grid"></div>
+        <div class="helper-block" style="margin-top:14px;">
+          <span class="label">为什么这样判断</span>
+          <div id="reason-block" class="message-body">等待静态检查。</div>
+        </div>
+        <div id="decision-list" class="detail-list" style="margin-top:14px;"></div>
+        <div id="signal-grid" class="signal-grid" style="margin-top:14px;"></div>
+      </section>
+    </section>
+
+    <section class="dashboard-grid section raise-in delay-2">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>当前生效规则</h2>
+          <p class="panel-copy">这些就是当前线上真实生效的几条主要路由摘要。</p>
+        </div>
+        <div id="rules-list" class="compact-list">
+          <div class="empty">等待当前路由摘要。</div>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <div class="panel-head">
+          <h3>模型角色</h3>
+          <p class="panel-copy">这里只展示少量代表模型，帮助理解不同路由目标的职责。</p>
+        </div>
+        <div id="model-grid" class="stack">
+          <div class="empty">等待模型注册表。</div>
+        </div>
+        <details class="surface-card debug-card" style="margin-top:14px;">
+          <summary>查看检查响应</summary>
+          <pre id="response-json" class="code-block">等待首个 inspect 结果。</pre>
+        </details>
+      </aside>
+    </section>
+  </main>
+</div>
+
+<script>
+  const bootstrap = __BOOTSTRAP__;
+  const ROUTES = {
+    general_qa: { label: "普通问答", detail: "开放问答与轻量解释。" },
+    summarization: { label: "总结任务", detail: "总结、压缩和提炼重点。" },
+    coding: { label: "代码任务", detail: "调试、实现和代码理解。" },
+    reasoning: { label: "推理任务", detail: "比较、分析和多步推理。" },
+    rag: { label: "检索增强", detail: "检索、资料查询和工具联动。" }
+  };
+  const PRESETS = {
+    general: "请解释为什么 agent router 需要可解释的规则路由。",
+    summary: "请用 5 条短要点总结当前策略治理生命周期。",
+    coding: "修复这个 Python 问题：把 SQLAlchemy 结果序列化成 JSON 时出现 TypeError。",
+    reasoning: "比较规则路由和 AI 辅助治理为什么需要同时存在，并解释原因。",
+    rag: "判断一个需要搜索和长上下文的文档型请求，大概率应该走哪条路由。"
+  };
+
+  const state = { inspection: null, models: [], snapshot: null, dashboard: null };
+  const el = {};
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    bindElements();
+    initDefaults();
+    bindEvents();
+    renderInspection();
+    renderSignals();
+    renderRules();
+    renderModels();
+    updatePreview();
+    await loadContext();
+    await runInspect({ silent: true });
+  });
+
+  function bindElements() {
+    [
+      "service-pill",
+      "selected-route",
+      "decision-source",
+      "decision-model",
+      "fallback-state",
+      "active-policy",
+      "model-count",
+      "message",
+      "notice",
+      "inspect-button",
+      "request-preview",
+      "summary-grid",
+      "reason-block",
+      "decision-list",
+      "signal-grid",
+      "rules-list",
+      "model-grid",
+      "response-json"
+    ].forEach((id) => {
+      el[id] = document.getElementById(id);
+    });
+  }
+
+  function initDefaults() {
+    el["message"].value = PRESETS.general;
+  }
+
+  function bindEvents() {
+    el["message"].addEventListener("input", updatePreview);
+
+    document.querySelectorAll("[data-preset]").forEach((button) => {
+      button.addEventListener("click", () => {
+        el["message"].value = PRESETS[button.dataset.preset];
+        updatePreview();
+        runInspect({ silent: true });
+      });
+    });
+
+    el["inspect-button"].addEventListener("click", () => runInspect());
+  }
+
+  function updatePreview() {
+    const message = el["message"].value.trim();
+    if (!message) {
+      el["request-preview"].textContent = "输入 message 后，这里会显示 inspect 请求。";
+      return;
+    }
+    el["request-preview"].textContent = JSON.stringify(
+      {
+        endpoint: bootstrap.inspectEndpoint,
+        payload: { message }
+      },
+      null,
+      2
+    );
+  }
+
+  function showNotice(message) {
+    el["notice"].textContent = message;
+    el["notice"].classList.add("show");
+  }
+
+  function clearNotice() {
+    el["notice"].textContent = "";
+    el["notice"].classList.remove("show");
+  }
+
+  function renderInspection(inspection = null) {
+    if (!inspection) {
+      el["summary-grid"].innerHTML = [
+        summaryCard("任务类型", "等待中", "等待静态检查"),
+        summaryCard("选中路由", "-", "等待选模"),
+        summaryCard("决策方式", "-", "等待决策来源"),
+        summaryCard("模型名称", "-", "等待解析模型名")
+      ].join("");
+      el["reason-block"].textContent = "等待静态检查。";
+      el["decision-list"].innerHTML = [
+        detailItem("决策来源", "-"),
+        detailItem("决策模型", "-"),
+        detailItem("决策置信度", "-"),
+        detailItem("规则回退", "-")
+      ].join("");
+      el["selected-route"].textContent = "等待中";
+      el["decision-source"].textContent = "等待中";
+      el["decision-model"].textContent = "-";
+      el["fallback-state"].textContent = "-";
+      return;
+    }
+
+    const route = routeMeta(inspection.task_type);
+    const trace = inspection.decision_trace || null;
+    el["summary-grid"].innerHTML = [
+      summaryCard("任务类型", route.label, route.detail),
+      summaryCard("选中路由", inspection.selected_model_key, inspection.selected_model_name || "未解析模型"),
+      summaryCard("决策方式", formatDecisionSource(trace), formatDecisionStatus(trace)),
+      summaryCard("模型名称", inspection.selected_model_name || "-", inspection.reason || "当前路由说明")
+    ].join("");
+    el["reason-block"].textContent = inspection.reason || "当前没有返回路由原因。";
+    el["decision-list"].innerHTML = [
+      detailItem("决策来源", formatDecisionSource(trace)),
+      detailItem("决策模型", formatDecisionModel(trace)),
+      detailItem("决策置信度", formatDecisionConfidence(trace)),
+      detailItem("规则回退", formatDecisionStatus(trace))
+    ].join("");
+    el["selected-route"].textContent = inspection.selected_model_key || "-";
+    el["decision-source"].textContent = formatDecisionSource(trace);
+    el["decision-model"].textContent = formatDecisionModel(trace);
+    el["fallback-state"].textContent = formatDecisionStatus(trace);
+  }
+
+  function renderSignals(features = null) {
+    const signals = [
+      ["代码信号", features?.code_signal || 0],
+      ["检索信号", features?.retrieval_signal || 0],
+      ["推理信号", features?.reasoning_signal || 0],
+      ["总结信号", features?.summarization_signal || 0]
+    ];
+    el["signal-grid"].innerHTML = signals.map(([label, value]) => signalCard(label, value)).join("");
+  }
+
+  function renderRules() {
+    const currentSummary = Array.isArray(state.dashboard?.current_router_summary) ? state.dashboard.current_router_summary : [];
+    if (currentSummary.length > 0) {
+      el["rules-list"].innerHTML = currentSummary.slice(0, 4).map((item) => `
+        <div class="list-item">
+          <span>当前逻辑</span>
+          <strong>${escapeHtml(item)}</strong>
+        </div>
+      `).join("");
+      return;
+    }
+
+    const rules = Array.isArray(state.snapshot?.active_routing_rules) ? state.snapshot.active_routing_rules : [];
+    if (rules.length === 0) {
+      el["rules-list"].innerHTML = '<div class="empty">当前路由摘要暂不可用。</div>';
+      return;
+    }
+    el["rules-list"].innerHTML = rules.slice(0, 4).map((rule) => `
+      <div class="rule-item">
+        <span>${escapeHtml(rule.route_to)}</span>
+        <strong>${escapeHtml(rule.condition_description)}</strong>
+      </div>
+    `).join("");
+  }
+
+  function renderModels() {
+    if (!Array.isArray(state.models) || state.models.length === 0) {
+      el["model-grid"].innerHTML = '<div class="empty">模型注册表为空或无法访问。</div>';
+      return;
+    }
+    el["model-grid"].innerHTML = state.models.slice(0, 3).map((model) => `
+      <article class="surface-card">
+        <span class="label">${escapeHtml(model.alias)}</span>
+        <strong>${escapeHtml(model.model)}</strong>
+        <p class="card-copy">${escapeHtml((model.capabilities || []).join("、") || "暂无能力标签")}</p>
+      </article>
+    `).join("");
+  }
+
+  async function loadContext() {
+    const [healthResult, modelsResult, snapshotResult, dashboardResult] = await Promise.allSettled([
+      fetchJson(bootstrap.healthEndpoint),
+      fetchJson(bootstrap.modelsEndpoint),
+      fetchJson(bootstrap.policySnapshotEndpoint),
+      fetchJson(`${bootstrap.policyDashboardEndpoint}?limit=6&sample_limit=6`)
+    ]);
+
+    const health = readSettled(healthResult);
+    state.models = readSettled(modelsResult, []);
+    state.snapshot = readSettled(snapshotResult);
+    state.dashboard = readSettled(dashboardResult);
+
+    setStatusPill(
+      el["service-pill"],
+      health?.status === "ok" ? "ok" : health ? "warn" : "danger",
+      health?.status === "ok" ? "服务在线" : health ? "服务告警" : "服务离线"
+    );
+
+    el["active-policy"].textContent = state.snapshot?.active_policy_version || "-";
+    el["active-policy"].textContent = `生效策略：${state.snapshot?.active_policy_version || "-"}`;
+    el["model-count"].textContent = `模型数：${String(Array.isArray(state.models) ? state.models.length : 0)}`;
+
+    renderRules();
+    renderModels();
+  }
+
+  async function runInspect({ silent = false } = {}) {
+    const message = el["message"].value.trim();
+    if (!message) {
+      if (!silent) showNotice("message 不能为空。");
+      return;
+    }
+    clearNotice();
+    setButtonBusy(true);
+    try {
+      const data = await fetchJson(bootstrap.inspectEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message })
+      });
+      state.inspection = data;
+      renderInspection(data);
+      renderSignals(data.features || null);
+      el["response-json"].textContent = JSON.stringify(data, null, 2);
+    } catch (error) {
+      renderInspection();
+      renderSignals();
+      el["response-json"].textContent = error instanceof Error ? error.message : String(error);
+      if (!silent) showNotice(error instanceof Error ? error.message : String(error));
+    } finally {
+      setButtonBusy(false);
+    }
+  }
+
+  function setButtonBusy(busy) {
+    if (!el["inspect-button"].dataset.label) el["inspect-button"].dataset.label = el["inspect-button"].innerHTML;
+    el["inspect-button"].disabled = busy;
+    el["inspect-button"].innerHTML = busy
+      ? '<span class="spinner" aria-hidden="true"></span> 检查中'
+      : el["inspect-button"].dataset.label;
+  }
+
+  function summaryCard(label, value, copy) {
+    return `
+      <article class="summary-card">
+        <span class="label">${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
+        <p class="card-copy">${escapeHtml(copy)}</p>
+      </article>
+    `;
+  }
+
+  function signalCard(label, value) {
+    const percent = Math.max(0, Math.min(100, Math.round(Number(value || 0) * 100)));
+    return `
+      <article class="signal-card">
+        <div class="signal-head">
+          <span class="label">${escapeHtml(label)}</span>
+          <strong>${escapeHtml(String(percent))}%</strong>
+        </div>
+        <div class="signal-track" aria-hidden="true">
+          <div class="signal-fill" style="--fill:${percent}%;"></div>
+        </div>
+      </article>
+    `;
+  }
+
+  function detailItem(label, value) {
+    return `
+      <div class="detail-item">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
+      </div>
+    `;
+  }
+
+  function formatDecisionSource(trace) {
+    if (!trace) return "等待中";
+    return trace.source === "ai_model" ? "AI 决策生效" : "规则兜底生效";
+  }
+
+  function formatDecisionModel(trace) {
+    if (!trace) return "-";
+    return trace.ai_model_version || "未调用外部决策模型";
+  }
+
+  function formatDecisionConfidence(trace) {
+    if (!trace || typeof trace.ai_confidence !== "number") return "未提供";
+    return `${Math.round(trace.ai_confidence * 100)}%`;
+  }
+
+  function formatDecisionStatus(trace) {
+    if (!trace) return "等待中";
+    if (trace.source === "rule_router" && trace.ai_route_to) return "已回退到规则";
+    if (trace.source === "rule_router") return "规则直接生效";
+    if (trace.ai_route_to && trace.ai_route_to !== trace.rule_route_to) return "AI 覆盖规则";
+    if (trace.ai_route_to && trace.ai_route_to === trace.rule_route_to) return "AI 与规则一致";
+    return "AI 决策生效";
+  }
+
+  function routeMeta(taskType) {
+    return ROUTES[taskType] || { label: taskType || "未知类型", detail: "等待分类。" };
+  }
+
+  async function fetchJson(url, options = undefined) {
+    const response = await fetch(url, options);
+    const text = await response.text();
+    let payload = {};
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch (error) {
+        throw new Error(`接口未返回 JSON: ${error.message}`);
+      }
+    }
+    if (!response.ok) throw new Error(payload.detail || `HTTP ${response.status}`);
+    return payload;
+  }
+
+  function readSettled(result, fallback = null) {
+    return result.status === "fulfilled" ? result.value : fallback;
+  }
+
+  function setStatusPill(node, tone, text) {
+    node.textContent = text;
+    node.className = `pill status-pill ${tone}`;
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll("\"", "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>__APP_NAME__ Governance</title>
+<link rel="stylesheet" href="/static/site.css">
+</head>
+<body>
+<a class="skip-link" href="#main">跳到主内容</a>
+<div class="shell">
+  <header class="site-nav" aria-label="主导航">
+    <div class="brand-mark">
+      <span class="brand-orb" aria-hidden="true"></span>
+      <div class="brand-copy">
+        <strong>__APP_NAME__</strong>
+        <span>治理中心</span>
+      </div>
+    </div>
+    <nav class="nav-links">
+      <a class="nav-link" href="/">总览</a>
+      <a class="nav-link" href="/workspace">对话工作台</a>
+      <a class="nav-link" href="/classification">AI 决策层</a>
+      <a class="nav-link active" href="/governance">治理中心</a>
+    </nav>
+    <div class="nav-meta">
+      <span id="mode-pill" class="pill">__MODE_LABEL__</span>
+      <a class="pill" href="/docs" target="_blank" rel="noreferrer">文档</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero hero-grid raise-in">
+      <div>
+        <p class="kicker">治理后台</p>
+        <h1 class="page-title">治理后台：recommendation、dry-run、rollout plan 和 audit timeline。</h1>
+        <p class="copy">只做治理观察，不审批、不应用、不改 live router。</p>
+        <div class="hero-actions">
+          <a class="button-secondary" href="/classification">回到 AI 决策层</a>
+          <a class="button-secondary" href="/workspace">回到对话工作台</a>
+        </div>
+        <div class="hero-status">
+          <span id="service-pill" class="pill">检测服务中</span>
+          <span id="policy-pill" class="pill">读取策略中</span>
+          <span id="audit-pill" class="pill">读取审计中</span>
+        </div>
+      </div>
+      <aside class="hero-aside">
+        <article class="surface-card highlight delay-1 raise-in">
+          <span class="label">治理快照</span>
+          <div class="summary-list">
+            <div class="summary-item">
+              <span>生效策略</span>
+              <strong id="active-policy">-</strong>
+            </div>
+            <div class="summary-item">
+              <span>建议总数</span>
+              <strong id="total-recommendations">-</strong>
+            </div>
+            <div class="summary-item">
+              <span>已批准未生效</span>
+              <strong id="approved-not-applied">-</strong>
+            </div>
+            <div class="summary-item">
+              <span>审计事件总数</span>
+              <strong id="audit-count">-</strong>
+            </div>
+          </div>
+        </article>
+        <article class="surface-card delay-2 raise-in">
+          <span class="label">治理说明</span>
+          <div id="governance-note" class="helper-text">
+            approved recommendations 仍然只是治理状态，尚未自动生效；live routing 依旧由 router.py 当前规则控制。
+          </div>
+        </article>
+      </aside>
+    </section>
+
+    <section class="section raise-in delay-1">
+      <div class="section-head">
+        <div>
+          <h2>生命周期计数</h2>
+          <p class="section-copy">当前 recommendation portfolio 在各个治理阶段的分布。</p>
+        </div>
+      </div>
+      <div id="count-cards" class="stat-grid">
+        <div class="empty">等待治理计数。</div>
+      </div>
+    </section>
+
+    <section class="dashboard-grid section raise-in delay-2">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>当前生效策略</h2>
+          <p class="panel-copy">当前正在生效的路由摘要和 approved but not applied recommendation。</p>
+        </div>
+        <div id="router-summary" class="compact-list"></div>
+        <div id="approved-list" class="compact-list" style="margin-top:14px;"></div>
+      </section>
+
+      <aside class="panel">
+        <div class="panel-head">
+          <h3>最近审计事件</h3>
+          <p class="panel-copy">append-only audit trail 的最新事件。</p>
+        </div>
+        <div id="audit-events" class="compact-list"></div>
+      </aside>
+    </section>
+
+    <section class="section raise-in delay-3">
+      <div class="section-head">
+        <div>
+          <h2>建议组合视图</h2>
+          <p class="section-copy">点击一项后右侧会加载 review pack 和 timeline。</p>
+        </div>
+        <div class="chip-row">
+          <button class="chip active" type="button" data-filter="all">全部</button>
+          <button class="chip" type="button" data-filter="top_priority">优先</button>
+          <button class="chip" type="button" data-filter="blocked">阻塞</button>
+          <button class="chip" type="button" data-filter="unnecessary">无需推进</button>
+          <button class="chip" type="button" data-filter="pending">待处理</button>
+        </div>
+      </div>
+      <div class="dashboard-grid">
+        <section class="panel">
+          <div id="portfolio-list" class="selection-list"></div>
+        </section>
+
+        <section class="stack">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>建议详情</h3>
+              <p class="panel-copy">基于 review pack 和 timeline 的只读详情。</p>
+            </div>
+            <div id="detail-summary" class="summary-grid"></div>
+            <div class="helper-block" style="margin-top:14px;">
+              <span class="label">摘要结论</span>
+              <div id="executive-summary" class="message-body">选择一条 recommendation 后，这里会显示治理摘要。</div>
+            </div>
+            <div id="detail-list" class="detail-list" style="margin-top:14px;"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h3>就绪度 / 模拟 / 发布计划</h3>
+            </div>
+            <div id="analysis-summary" class="summary-grid"></div>
+            <div id="notes-grid" class="notes-list" style="margin-top:14px;"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h3>时间线预览</h3>
+            </div>
+            <div id="timeline-list" class="compact-list"></div>
+            <div class="button-row" style="margin-top:14px;">
+              <a id="report-export-link" class="button-secondary" href="#" target="_blank" rel="noreferrer">报告 JSON</a>
+              <a id="timeline-link" class="button-secondary" href="#" target="_blank" rel="noreferrer">时间线 JSON</a>
+            </div>
+          </section>
+        </section>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+  const bootstrap = __BOOTSTRAP__;
+  const SAMPLE_LIMIT = 12;
+  const state = {
+    health: null,
+    snapshot: null,
+    dashboard: null,
+    portfolio: null,
+    audit: null,
+    stats: null,
+    recommendations: [],
+    selectedRecommendationId: null,
+    selectedReport: null,
+    selectedTimeline: null
+  };
+  const el = {};
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    bindElements();
+    setStatusPill(el["mode-pill"], bootstrap.mockResponses ? "info" : "warn", bootstrap.modeLabel);
+    await loadGovernance();
+  });
+
+  function bindElements() {
+    [
+      "mode-pill",
+      "service-pill",
+      "policy-pill",
+      "audit-pill",
+      "active-policy",
+      "total-recommendations",
+      "approved-not-applied",
+      "audit-count",
+      "governance-note",
+      "count-cards",
+      "router-summary",
+      "approved-list",
+      "audit-events",
+      "portfolio-list",
+      "detail-summary",
+      "executive-summary",
+      "detail-list",
+      "analysis-summary",
+      "notes-grid",
+      "timeline-list",
+      "report-export-link",
+      "timeline-link"
+    ].forEach((id) => {
+      el[id] = document.getElementById(id);
+    });
+  }
+
+  async function loadGovernance() {
+    const [healthResult, snapshotResult, dashboardResult, portfolioResult, auditResult, recommendationsResult] =
+      await Promise.allSettled([
+        fetchJson(endpoint(bootstrap.healthEndpoint)),
+        fetchJson(endpoint(bootstrap.policySnapshotEndpoint)),
+        fetchJson(endpoint(`${bootstrap.policyDashboardEndpoint}?limit=12&sample_limit=${SAMPLE_LIMIT}`)),
+        fetchJson(endpoint(`${bootstrap.policyPortfolioEndpoint}?limit=24&sample_limit=${SAMPLE_LIMIT}`)),
+        fetchJson(endpoint(`${bootstrap.policyAuditOverviewEndpoint}?limit=12`)),
+        fetchJson(endpoint(`${bootstrap.apiPrefix}/admin/policy/recommendations`))
+      ]);
+
+    state.health = readSettled(healthResult);
+    state.snapshot = readSettled(snapshotResult);
+    state.dashboard = readSettled(dashboardResult);
+    state.portfolio = readSettled(portfolioResult);
+    state.audit = readSettled(auditResult);
+    state.recommendations = Array.isArray(readSettled(recommendationsResult, [])) ? readSettled(recommendationsResult, []) : [];
+
+    renderHero();
+    renderCounts();
+    renderCurrentPolicy();
+    renderAuditEvents();
+    renderRecommendationPortfolio();
+
+    document.querySelectorAll("[data-filter]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("[data-filter]").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        renderRecommendationPortfolio(btn.dataset.filter);
+      });
+    });
+
+    const defaultRecommendationId = deriveDefaultRecommendationId();
+    if (defaultRecommendationId !== null) {
+      await loadRecommendationDetail(defaultRecommendationId);
+    } else {
+      renderDetailFallback("当前还没有 recommendation，可先在治理流程里生成 recommendation。");
+    }
+  }
+
+  function renderHero() {
+    setStatusPill(
+      el["service-pill"],
+      state.health?.status === "ok" ? "ok" : state.health ? "warn" : "danger",
+      state.health?.status === "ok" ? "服务在线" : state.health ? "服务告警" : "服务离线"
+    );
+    setStatusPill(
+      el["policy-pill"],
+      state.snapshot ? "ok" : "danger",
+      state.snapshot?.active_policy_version || "策略快照读取失败"
+    );
+    setStatusPill(
+      el["audit-pill"],
+      state.audit ? "info" : "warn",
+      state.audit ? `${state.audit.total_audit_events ?? 0} 条审计事件` : "审计概览不可用"
+    );
+
+    el["active-policy"].textContent = state.snapshot?.active_policy_version || "-";
+    el["total-recommendations"].textContent = String(state.portfolio?.counts?.total ?? state.recommendations.length ?? 0);
+    el["approved-not-applied"].textContent = String(
+      state.dashboard?.governance_counts?.approved_but_not_applied_count ??
+      state.snapshot?.approved_but_not_applied?.length ??
+      0
+    );
+    el["audit-count"].textContent = String(state.audit?.total_audit_events ?? 0);
+  }
+
+  function renderCounts() {
+    const counts = state.dashboard?.governance_counts;
+    if (!counts) {
+      el["count-cards"].innerHTML = '<div class="empty">治理计数不可用。</div>';
+      return;
+    }
+
+    const items = [
+      metricCard("待处理", counts.pending_count, "等待治理决策的 recommendation"),
+      metricCard("已批准", counts.approved_count, "已批准但尚未自动应用"),
+      metricCard("可进入后续应用", counts.ready_for_future_apply_count, "未来可以考虑进入受控 rollout"),
+      metricCard("未就绪", counts.not_ready_count, "存在 blocking guardrail 问题"),
+      metricCard("人工复核", counts.manual_review_required_count, "需要人工治理判断"),
+      metricCard("无需推进", counts.unnecessary_count, "当前 live router 已覆盖或无需推进"),
+      metricCard("已拒绝", counts.rejected_count, "治理上已明确不推进"),
+      metricCard("已批准未生效", counts.approved_but_not_applied_count, "治理通过但尚未变成 live policy")
+    ];
+    el["count-cards"].innerHTML = items.join("");
+  }
+
+  function renderCurrentPolicy() {
+    const routerSummary = Array.isArray(state.dashboard?.current_router_summary)
+      ? state.dashboard.current_router_summary
+      : [];
+    if (routerSummary.length === 0) {
+      el["router-summary"].innerHTML = '<div class="empty">当前 live router 摘要不可用。</div>';
+    } else {
+      el["router-summary"].innerHTML = routerSummary.map((item) => `
+        <div class="list-item">
+          <span>当前路由</span>
+          <strong>${escapeHtml(item)}</strong>
+        </div>
+      `).join("");
+    }
+
+    const approved = Array.isArray(state.snapshot?.approved_but_not_applied)
+      ? state.snapshot.approved_but_not_applied
+      : [];
+    if (approved.length === 0) {
+      el["approved-list"].innerHTML = '<div class="empty">当前没有 approved but not applied 的 recommendation。</div>';
+      return;
+    }
+    el["approved-list"].innerHTML = approved.slice(0, 6).map((item) => `
+      <div class="list-item">
+        <span>#${escapeHtml(String(item.id))} · P${escapeHtml(String(item.priority))}</span>
+        <strong>${escapeHtml(item.route_to)} · ${escapeHtml(item.condition)}</strong>
+      </div>
+    `).join("");
+  }
+
+  function renderAuditEvents() {
+    const events = Array.isArray(state.audit?.recent_events) ? state.audit.recent_events : [];
+    if (events.length === 0) {
+      el["audit-events"].innerHTML = '<div class="empty">近期 audit events 不可用。</div>';
+      return;
+    }
+    el["audit-events"].innerHTML = events.map((event) => `
+      <div class="list-item">
+        <span>${escapeHtml(event.event_type)}</span>
+        <strong>#${escapeHtml(String(event.recommendation_id))} · ${escapeHtml(event.event_summary)}</strong>
+      </div>
+    `).join("");
+  }
+
+  function renderRecommendationPortfolio(filter = "all") {
+    let items;
+    if (filter === "top_priority") {
+      items = state.portfolio?.top_priority_recommendations || [];
+    } else if (filter === "blocked") {
+      items = state.portfolio?.blocked_recommendations || [];
+    } else if (filter === "unnecessary") {
+      items = state.portfolio?.unnecessary_recommendations || [];
+    } else if (filter === "pending") {
+      items = state.portfolio?.long_pending_recommendations || [];
+    } else {
+      items = Array.isArray(state.portfolio?.recommendation_portfolio)
+        ? state.portfolio.recommendation_portfolio
+        : [];
+    }
+    if (items.length === 0) {
+      el["portfolio-list"].innerHTML = '<div class="empty">当前分组没有 recommendation。</div>';
+      return;
+    }
+    el["portfolio-list"].innerHTML = items.slice(0, 16).map((item) => selectionCard(item)).join("");
+    bindSelectionButtons(el["portfolio-list"]);
+  }
+
+  function renderPortfolioSections() {
+    renderSelectionGroup("top-priority", state.portfolio?.top_priority_recommendations || [], "当前没有 top priority recommendation。");
+    renderSelectionGroup("blocked-list", state.portfolio?.blocked_recommendations || [], "当前没有 blocked recommendation。");
+    renderSelectionGroup("unnecessary-list", state.portfolio?.unnecessary_recommendations || [], "当前没有 unnecessary recommendation。");
+    renderSelectionGroup("pending-list", state.portfolio?.long_pending_recommendations || [], "当前没有 long pending recommendation。");
+  }
+
+  function renderSelectionGroup(targetId, items, emptyMessage) {
+    const target = el[targetId];
+    if (!Array.isArray(items) || items.length === 0) {
+      target.innerHTML = `<div class="empty">${escapeHtml(emptyMessage)}</div>`;
+      return;
+    }
+    target.innerHTML = items.slice(0, 4).map((item) => selectionCard(item)).join("");
+    bindSelectionButtons(target);
+  }
+
+  function selectionCard(item) {
+    const active = Number(item.id) === Number(state.selectedRecommendationId);
+    const title = item.summary || item.condition || "未命名建议";
+    const metaBadges = [
+      badgeMarkup(item.status, statusTone(item.status)),
+      badgeMarkup(item.readiness || "unknown", readinessTone(item.readiness)),
+      badgeMarkup(item.review_status || "unreviewed", "info")
+    ].join("");
+
+    return `
+      <button class="selection-card ${active ? "active" : ""}" type="button" data-recommendation-id="${escapeHtml(String(item.id))}">
+        <strong>#${escapeHtml(String(item.id))} · ${escapeHtml(title)}</strong>
+        <div class="card-copy">${escapeHtml(item.condition || item.recommended_admin_action || "暂无条件说明。")}</div>
+        <div class="selection-meta">
+          ${metaBadges}
+          <span class="badge ghost">${escapeHtml(item.route_to || "unknown route")}</span>
+        </div>
+      </button>
+    `;
+  }
+
+  function bindSelectionButtons(container) {
+    container.querySelectorAll("[data-recommendation-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const recommendationId = Number(button.dataset.recommendationId);
+        if (Number.isFinite(recommendationId)) {
+          loadRecommendationDetail(recommendationId);
+        }
+      });
+    });
+  }
+
+  async function loadRecommendationDetail(recommendationId) {
+    state.selectedRecommendationId = recommendationId;
+    const activeFilter = document.querySelector("[data-filter].active")?.dataset.filter || "all";
+    renderRecommendationPortfolio(activeFilter);
+    renderDetailLoading(recommendationId);
+
+    const reportPath = `${bootstrap.apiPrefix}/admin/policy/recommendations/${recommendationId}/report?sample_limit=${SAMPLE_LIMIT}`;
+    const timelinePath = `${bootstrap.apiPrefix}/admin/policy/recommendations/${recommendationId}/timeline`;
+    el["report-export-link"].href = endpoint(`${bootstrap.apiPrefix}/admin/policy/recommendations/${recommendationId}/report/export?sample_limit=${SAMPLE_LIMIT}`);
+    el["timeline-link"].href = endpoint(timelinePath);
+
+    const [reportResult, timelineResult] = await Promise.allSettled([
+      fetchJson(endpoint(reportPath)),
+      fetchJson(endpoint(timelinePath))
+    ]);
+
+    state.selectedReport = readSettled(reportResult);
+    state.selectedTimeline = readSettled(timelineResult);
+
+    renderRecommendationDetail(recommendationId);
+  }
+
+  function renderDetailLoading(recommendationId) {
+    const source = recommendationById(recommendationId);
+    el["detail-summary"].innerHTML = [
+      metricCard("建议", source ? `#${source.id}` : `#${recommendationId}`, "正在读取治理报告"),
+      metricCard("状态", source?.status || "-", "读取治理状态"),
+      metricCard("就绪度", source?.readiness || "-", "读取就绪度")
+    ].join("");
+    el["executive-summary"].textContent = "正在读取 recommendation 详情。";
+    el["detail-list"].innerHTML = '<div class="empty">正在加载 recommendation 详情。</div>';
+    el["analysis-summary"].innerHTML = "";
+    el["notes-grid"].innerHTML = "";
+    el["timeline-list"].innerHTML = '<div class="empty">正在加载 timeline。</div>';
+  }
+
+  function renderRecommendationDetail(recommendationId) {
+    const report = state.selectedReport;
+    const timeline = state.selectedTimeline;
+    const fallbackRecommendation = recommendationById(recommendationId);
+
+    if (!report) {
+      renderDetailFallback("未能生成 governance review pack。");
+      return;
+    }
+
+    const recommendation = report.recommendation || fallbackRecommendation || {};
+    el["detail-summary"].innerHTML = [
+      metricCard("路由目标", recommendation.route_to || "-", recommendation.condition || "暂无条件说明"),
+      metricCard("状态", recommendation.status || "-", recommendation.review_status || "暂无审查状态"),
+      metricCard("就绪度", report.apply_readiness?.readiness || fallbackRecommendation?.readiness || "-", report.apply_readiness?.next_step || "暂无下一步建议")
+    ].join("");
+
+    el["executive-summary"].textContent = report.executive_summary || "未返回摘要结论。";
+    el["detail-list"].innerHTML = `
+      <div class="detail-item"><span>摘要</span><strong>${escapeHtml(recommendation.summary || "-")}</strong></div>
+      <div class="detail-item"><span>优先级</span><strong>${escapeHtml(String(recommendation.priority ?? "-"))}</strong></div>
+      <div class="detail-item"><span>审查意见</span><strong>${escapeHtml(recommendation.review_comment || "-")}</strong></div>
+      <div class="detail-item"><span>来源</span><strong>${escapeHtml(recommendation.source || "-")}</strong></div>
+      <div class="detail-item"><span>最新审计事件</span><strong>${escapeHtml(report.audit_summary?.latest_event_type || "-")} · ${escapeHtml(report.audit_summary?.latest_event_status || "-")}</strong></div>
+      <div class="detail-item"><span>生成时间</span><strong>${escapeHtml(formatDateTime(report.generated_at))}</strong></div>
+    `;
+
+    el["analysis-summary"].innerHTML = [
+      metricCard(
+        "模拟结果",
+        `${report.simulation?.changed_samples ?? 0}/${report.simulation?.total_samples ?? 0}`,
+        "changed / total samples"
+      ),
+      metricCard(
+        "发布策略",
+        report.rollout_plan?.rollout_strategy || "-",
+        "来自 rollout plan summary"
+      ),
+      metricCard(
+        "审计事件",
+        String(report.audit_summary?.total_events ?? 0),
+        "append-only timeline events"
+      )
+    ].join("");
+
+    const notes = [
+      helperBlock(
+        "阻塞问题",
+        Array.isArray(report.apply_readiness?.blocking_issues) && report.apply_readiness.blocking_issues.length > 0
+          ? report.apply_readiness.blocking_issues.join(" | ")
+          : "无 blocking issues。"
+      ),
+      helperBlock(
+        "警告",
+        Array.isArray(report.apply_readiness?.non_blocking_warnings) && report.apply_readiness.non_blocking_warnings.length > 0
+          ? report.apply_readiness.non_blocking_warnings.join(" | ")
+          : "无非阻塞 warning。"
+      ),
+      helperBlock(
+        "监控指标",
+        Array.isArray(report.rollout_plan?.monitoring_metrics) && report.rollout_plan.monitoring_metrics.length > 0
+          ? report.rollout_plan.monitoring_metrics.join(", ")
+          : "无 monitoring metrics。"
+      ),
+      helperBlock(
+        "回滚目标",
+        report.rollout_plan?.rollback_plan?.restore_target || "未提供 restore target。"
+      )
+    ];
+    el["notes-grid"].innerHTML = notes.join("");
+
+    const timelineEvents = Array.isArray(timeline?.timeline) ? timeline.timeline : [];
+    if (timelineEvents.length === 0) {
+      el["timeline-list"].innerHTML = '<div class="empty">当前 recommendation 没有 timeline 事件。</div>';
+      return;
+    }
+    el["timeline-list"].innerHTML = timelineEvents.slice(-6).map((event) => `
+      <div class="timeline-item">
+        <span>${escapeHtml(event.event_type)}</span>
+        <strong>${escapeHtml(formatDateTime(event.created_at))} · ${escapeHtml(event.event_summary)}</strong>
+      </div>
+    `).join("");
+  }
+
+  function renderDetailFallback(message) {
+    el["detail-summary"].innerHTML = [
+      metricCard("建议", "-", "未选中 recommendation"),
+      metricCard("状态", "-", "等待 recommendation"),
+      metricCard("就绪度", "-", "等待 recommendation")
+    ].join("");
+    el["executive-summary"].textContent = message;
+    el["detail-list"].innerHTML = '<div class="empty">暂无 recommendation 详情。</div>';
+    el["analysis-summary"].innerHTML = '<div class="empty">simulation / rollout / readiness 暂不可用。</div>';
+    el["notes-grid"].innerHTML = "";
+    el["timeline-list"].innerHTML = '<div class="empty">timeline 暂不可用。</div>';
+  }
+
+  function deriveDefaultRecommendationId() {
+    const topPriorityId = state.portfolio?.top_priority_recommendations?.[0]?.id;
+    if (Number.isFinite(topPriorityId)) {
+      return Number(topPriorityId);
+    }
+    const recentId = state.dashboard?.recent_recommendations?.[0]?.id;
+    if (Number.isFinite(recentId)) {
+      return Number(recentId);
+    }
+    const portfolioId = state.portfolio?.recommendation_portfolio?.[0]?.id;
+    if (Number.isFinite(portfolioId)) {
+      return Number(portfolioId);
+    }
+    const recommendationId = state.recommendations?.[0]?.id;
+    if (Number.isFinite(recommendationId)) {
+      return Number(recommendationId);
+    }
+    return null;
+  }
+
+  function recommendationById(recommendationId) {
+    const allItems = [
+      ...(state.portfolio?.recommendation_portfolio || []),
+      ...(state.portfolio?.top_priority_recommendations || []),
+      ...(state.portfolio?.blocked_recommendations || []),
+      ...(state.portfolio?.unnecessary_recommendations || []),
+      ...(state.portfolio?.long_pending_recommendations || []),
+      ...(state.recommendations || [])
+    ];
+    return allItems.find((item) => Number(item.id) === Number(recommendationId)) || null;
+  }
+
+  function metricCard(label, value, copy) {
+    return `
+      <article class="metric-card">
+        <span class="label">${escapeHtml(label)}</span>
+        <strong>${escapeHtml(String(value))}</strong>
+        <p class="card-copy">${escapeHtml(copy)}</p>
+      </article>
+    `;
+  }
+
+  function helperBlock(label, text) {
+    return `
+      <div class="helper-block">
+        <span class="label">${escapeHtml(label)}</span>
+        <div class="message-body">${escapeHtml(text)}</div>
+      </div>
+    `;
+  }
+
+  function badgeMarkup(text, tone) {
+    return `<span class="badge ${tone}">${escapeHtml(String(text))}</span>`;
+  }
+
+  function statusTone(status) {
+    if (status === "approved") return "ok";
+    if (status === "rejected") return "danger";
+    return "warn";
+  }
+
+  function readinessTone(readiness) {
+    if (readiness === "ready_for_future_apply") return "ok";
+    if (readiness === "manual_review_required") return "warn";
+    if (readiness === "unnecessary") return "info";
+    if (readiness === "not_ready") return "danger";
+    return "ghost";
+  }
+
+  async function fetchJson(url, options = undefined) {
+    const response = await fetch(url, options);
+    const text = await response.text();
+    let payload = {};
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch (error) {
+        throw new Error(`接口未返回 JSON: ${error.message}`);
+      }
+    }
+    if (!response.ok) {
+      throw new Error(payload.detail || `HTTP ${response.status}`);
+    }
+    return payload;
+  }
+
+  function endpoint(path) {
+    return `${window.location.origin}${path}`;
+  }
+
+  function readSettled(result, fallback = null) {
+    return result.status === "fulfilled" ? result.value : fallback;
+  }
+
+  function setStatusPill(node, tone, text) {
+    node.textContent = text;
+    node.className = `pill status-pill ${tone}`;
+  }
+
+  function formatDateTime(value) {
+    if (!value) return "-";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return String(value);
+    }
+    return parsed.toLocaleString();
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll("\"", "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+</script>
+</body>
+</html>
